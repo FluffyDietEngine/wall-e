@@ -9,7 +9,7 @@ HERE = pathlib.Path(__file__).parent
 DESCRIPTION = (HERE / "README.md").read_text()
 
 setup(
-    name = 'wall-e',
+    name = 'package-sieve',
     version = '0.1',
     description = 'Collector of absolute 3rd party packages from existing projects',
     long_description = DESCRIPTION,
@@ -30,8 +30,8 @@ setup(
     include_package_data=True,
     entry_points={
         "console_scripts":[
-            "wall-e=src.wall_e:main",
+            "package-sieve=src.wall_e:main",
         ]
     },
-    keywords='wall-e,ci,automation,linter,stale-package-remover',
+    keywords='package-sieve,wall-e,ci,automation,linter,stale-package-remover',
 )
