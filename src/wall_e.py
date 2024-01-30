@@ -3,8 +3,53 @@ from typing import Any
 from ast import NodeVisitor
 from pathlib import Path
 from argparse import ArgumentParser
-from pkg_resources import get_distribution #type: ignore
+import warnings
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    from pkg_resources import get_distribution  # type: ignore
+
 from pkg_resources import DistributionNotFound
+
+# Derived out of Python .gitignore file from https://github.com/github/gitignore/blob/main/Python.gitignore
+IGNORE_DIRECTORIES = [
+    "__pycache__",
+    "build",
+    "develop-eggs",
+    "dist",
+    "downloads",
+    "eggs",
+    ".eggs",
+    "lib",
+    "lib64",
+    "parts",
+    "sdist",
+    "var",
+    "wheels",
+    "sharepython-wheels",
+    "*.egg-info",
+    "htmlcov",
+    ".tox",
+    ".nox",
+    ".hypothesis",
+    ".pytest_cache",
+    "cover",
+    "instance",
+    "docs_build",
+    ".pybuilder",
+    "target",
+    "profile_default",
+    "__pypackages__",
+    "env",
+    "venv",
+    "ENV",
+    "env.bak",
+    "venv.bak",
+    ".mypy_cache",
+    ".pyre",
+    ".pytype",
+    "cython_debug",
+]
 
 
 class ImportCollector(NodeVisitor):
@@ -28,7 +73,7 @@ class ImportCollector(NodeVisitor):
                     self.imports.add(alias.name)
             except ModuleNotFoundError:
                 self.imports.add(alias.name)
-            except AttributeError:
+            except (AttributeError, TypeError):
                 pass
         self.generic_visit(node)
 
@@ -40,7 +85,7 @@ class ImportCollector(NodeVisitor):
                     self.imports.add(module if module else alias.name)
             except ModuleNotFoundError:
                 self.imports.add(module if module else alias.name)
-            except AttributeError:
+            except (AttributeError, TypeError):
                 pass
         self.generic_visit(node)
 
@@ -62,7 +107,9 @@ def get_modules_from_file(filename: Path) -> set:
         return collector.imports
 
 
-def traverse_directory(project_root: str, ignore_directories: list) -> set:
+def traverse_directory(
+    project_root: str, ignore_directories: list
+) -> dict[str, set[str]]:
     """
     Traverse through all files in the given directory,
     ignoring files and folders in ignore_patterns list of relative paths.
@@ -71,7 +118,11 @@ def traverse_directory(project_root: str, ignore_directories: list) -> set:
     :param ignore_patterns: List of relative file or folder paths to exclude.
     """
 
-    third_party_modules: set[str] = set()
+    # third_party_modules: set[str] = set()
+    imported_modules: dict[str, set[str]] = {
+        "third_party_modules": set(),
+        "internal_modules": set(),
+    }
 
     base_path = Path(project_root)
 
@@ -93,41 +144,20 @@ def traverse_directory(project_root: str, ignore_directories: list) -> set:
                 try:
                     package_info = get_distribution(module)
                     module_name = f"{package_info.project_name}=={package_info.version}"
+                    imported_modules["third_party_modules"].add(module_name)
                 except DistributionNotFound:
                     # modules like bs4, twocaptcha
-                    module_name = f"{module} # 🚨 alert"
-                third_party_modules.add(module_name)
+                    imported_modules["internal_modules"].add(module)
 
-    return third_party_modules
-
-
-def get_gitignore_folders() -> list[str]:
-    """Parses gitignore file and generates list of folders to avoid
-
-    Returns:
-        list[str]: Eg. ['__pycache__/', 'build/', 'develop-eggs/', 'dist/']
-    """
-    ignore_directories: list[str] = []
-    gitignore_file = Path.cwd().parent / ".gitignore"
-    if gitignore_file.exists():
-        with open(gitignore_file, "r") as _file:
-            patterns = _file.read()
-        for line in patterns.split("\n"):
-            if not line.startswith("#") and line:
-                if line.endswith("/"):
-                    # no need to consider file types, defaults to .py
-                    ignore_directories.append(line.replace("/", ""))
-    return ignore_directories
+    return imported_modules
 
 
 def main() -> Any:
     parser = ArgumentParser()
     parser.add_argument(
-        "--project_folder",
-        help="Absolute path of the project directory",
-        required=True,
-        default=Path.cwd(),
+        "--project_folder", help="Absolute path of the project directory", required=True
     )
+
     parser.add_argument(
         "--ignore",
         help="Files/Folders to be ignored in comma seperated manner. Eg. venv, __pycache__ etc",
@@ -137,15 +167,21 @@ def main() -> Any:
 
     args = parser.parse_args()
 
-    ignore_directories = get_gitignore_folders()
-
     if args.ignore:
-        ignore_directories.extend(args.ignore)
+        IGNORE_DIRECTORIES.extend(args.ignore)
 
-    modules = traverse_directory(args.project_folder, ignore_directories)
+    modules = traverse_directory(args.project_folder, IGNORE_DIRECTORIES)
 
-    with open("requirements.txt", "w") as _f:
-        _f.write("\n".join(modules))
+    with open("requirements.txt", "w") as file:
+        third_party_modules = modules.get("third_party_modules", [])  # type: ignore
+        internal_modules = modules.get("internal_modules", [])  # type: ignore
+
+        if third_party_modules:
+            file.write("\n".join(third_party_modules))
+
+        if internal_modules:
+            file.write("\n\n# 🚨 Modules to verify 🚨\n\n")
+            file.write("\n".join(f"# {module}" for module in internal_modules))
 
 
 if __name__ == "__main__":

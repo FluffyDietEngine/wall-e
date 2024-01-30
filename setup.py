@@ -1,4 +1,3 @@
-from importlib.metadata import entry_points
 import pathlib
 from setuptools import setup
 
@@ -10,7 +9,7 @@ DESCRIPTION = (HERE / "README.md").read_text()
 
 setup(
     name = 'package-sieve',
-    version = '0.2.0',
+    version = '0.3.0',
     description = 'Collector of absolute 3rd party packages from existing projects',
     long_description = DESCRIPTION,
     long_description_content_type="text/markdown",
