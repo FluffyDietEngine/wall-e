@@ -3,7 +3,7 @@ from typing import Any
 from ast import NodeVisitor
 from pathlib import Path
 from argparse import ArgumentParser
-from pkg_resources import get_distribution
+from pkg_resources import get_distribution #type: ignore
 from pkg_resources import DistributionNotFound
 
 
@@ -45,7 +45,7 @@ class ImportCollector(NodeVisitor):
         self.generic_visit(node)
 
 
-def get_modules_from_file(filename: str) -> set:
+def get_modules_from_file(filename: Path) -> set:
     """
     uses `ImportCollector` to analyse and collect third-party modules
 
@@ -62,29 +62,27 @@ def get_modules_from_file(filename: str) -> set:
         return collector.imports
 
 
-def traverse_directory(base_path: str, exclusions: list) -> set:
+def traverse_directory(project_root: str, ignore_directories: list) -> set:
     """
     Traverse through all files in the given directory,
-    excluding files and folders in exclusions list,
-    where exclusions are specified as relative paths.
+    ignoring files and folders in ignore_patterns list of relative paths.
 
     :param base_path: Path of the directory to traverse.
-    :param exclusions: List of relative file or folder paths to exclude.
+    :param ignore_patterns: List of relative file or folder paths to exclude.
     """
 
-    third_party_modules = set()
+    third_party_modules: set[str] = set()
 
-    base_path = Path(base_path).resolve()
-    exclusions = [base_path.joinpath(exclusion).resolve() for exclusion in exclusions]
+    base_path = Path(project_root)
 
-    for path in base_path.rglob("*"):
+    for item in base_path.rglob("*"):
         if any(
-            exclusion in path.parents or exclusion == path for exclusion in exclusions
-        ):
+            directory_part in ignore_directories for directory_part in item.parts
+        ) or item.suffix not in [".py", ".ipynb"]:
+            # this skips any file inside ignore_directories and non-python files
             continue
-
-        if path.is_file() and path.name.endswith(".py"):
-            modules = get_modules_from_file(path)
+        else:
+            modules = get_modules_from_file(item)
             for module in modules:
                 module_name = ""
 
@@ -103,19 +101,48 @@ def traverse_directory(base_path: str, exclusions: list) -> set:
     return third_party_modules
 
 
+def get_gitignore_folders() -> list[str]:
+    """Parses gitignore file and generates list of folders to avoid
+
+    Returns:
+        list[str]: Eg. ['__pycache__/', 'build/', 'develop-eggs/', 'dist/']
+    """
+    ignore_directories: list[str] = []
+    gitignore_file = Path.cwd().parent / ".gitignore"
+    if gitignore_file.exists():
+        with open(gitignore_file, "r") as _file:
+            patterns = _file.read()
+        for line in patterns.split("\n"):
+            if not line.startswith("#") and line:
+                if line.endswith("/"):
+                    # no need to consider file types, defaults to .py
+                    ignore_directories.append(line.replace("/", ""))
+    return ignore_directories
+
+
 def main() -> Any:
     parser = ArgumentParser()
     parser.add_argument(
-        "--project_folder", help="Absolute path of the project directory", required=True
+        "--project_folder",
+        help="Absolute path of the project directory",
+        required=True,
+        default=Path.cwd(),
     )
     parser.add_argument(
-        "--exclude",
-        help="Files/Folders to be excluded in comma seperated manner. Eg. venv, __pycache__ etc",
+        "--ignore",
+        help="Files/Folders to be ignored in comma seperated manner. Eg. venv, __pycache__ etc",
         required=False,
+        default=[],
     )
+
     args = parser.parse_args()
 
-    modules = traverse_directory(args.project_folder, args.exclude.split(","))
+    ignore_directories = get_gitignore_folders()
+
+    if args.ignore:
+        ignore_directories.extend(args.ignore)
+
+    modules = traverse_directory(args.project_folder, ignore_directories)
 
     with open("requirements.txt", "w") as _f:
         _f.write("\n".join(modules))
