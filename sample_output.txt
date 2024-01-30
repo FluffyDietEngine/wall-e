@@ -1,13 +1,18 @@
-utils # 🚨 alert 
-pydantic==1.10.8
-pandas==2.0.1
-openai # 🚨 alert
-Crypto # 🚨 alert
-requests==2.31.0
-weasyprint==59.0
-bs4 # 🚨 alert
 redis==5.0.1
-playwright==1.40.0
+fastapi==0.104.1
+celery==5.3.6
+nanoid==2.0.0
 PyMySQL==1.1.0
-mage-ai==0.9.51
-pymongo==4.3.3
+pydantic==1.10.0
+pymongo==4.6.0
+requests==2.31.0
+
+# 🚨 Modules to verify 🚨
+
+# settings
+# bson
+# tasks
+# decouple
+# database
+# models
+# utils
