@@ -10,7 +10,7 @@ DESCRIPTION = (HERE / "README.md").read_text()
 
 setup(
     name = 'package-sieve',
-    version = '0.1',
+    version = '0.2.0',
     description = 'Collector of absolute 3rd party packages from existing projects',
     long_description = DESCRIPTION,
     long_description_content_type="text/markdown",
@@ -33,5 +33,5 @@ setup(
             "package-sieve=src.wall_e:main",
         ]
     },
-    keywords='package-sieve,wall-e,ci,automation,linter,stale-package-remover',
+    keywords='package-sieve,wall-e,ci,automation,linter,stale-package-remover, developer-tools',
 )
