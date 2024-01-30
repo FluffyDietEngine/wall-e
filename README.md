@@ -1,4 +1,4 @@
-## Package-Sieve :tada: 
+## Package-Sieve 
 No BS, but modules :sparkles:. Collector of absolute 3rd party packages from existing projects with relevant versions. 
 
 ### Background
@@ -17,7 +17,8 @@ pip3 install package-sieve
 ```console
 package-sieve --project_folder /absolute/path/to/folder --ignore venv,__pycache__,__init__.py
 ```
-`--project_folder` - this is a mandatory parameter which mentions the root of the directory,  defaults to the current working directory
+`--project_folder` - this is a mandatory parameter which mentions the root of the directory,  defaults to the current working directory.
+
 `--ignore` - Mention the folders you want to ignore to create the requirements, optional parameter. By default this holds all the folder patterns added in your `.gitignore` file, if exists.
 
 > NOTE:  
